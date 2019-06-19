@@ -4,13 +4,14 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     android:orientation="vertical"
-    android:background="#84FFFF"
+    android:background="#4F84FFFF"
     tools:context=".MainActivity" >
 
-    <ListView
+    <android.support.v7.widget.RecyclerView
         android:id="@+id/song_list"
         android:layout_width="fill_parent"
-        android:layout_height="wrap_content" >
-    </ListView>
+        android:layout_height="wrap_content"
+        >
+    </android.support.v7.widget.RecyclerView>
 
 </LinearLayout>
