@@ -2,9 +2,11 @@ package com.example.thunderstrikeplayer;
 
 import android.app.Service;
 import android.content.ComponentName;
+import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.database.Cursor;
 import android.media.AudioManager;
 import android.media.MediaExtractor;
 import android.media.MediaPlayer;
@@ -15,6 +17,7 @@ import android.os.PowerManager;
 import android.provider.MediaStore;
 import android.util.Log;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -88,7 +91,29 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         player.reset();
         Song playSong = songs.get(songPos);
         long currSong = playSong.getId();
-        Uri trackUri = ContentUris.withAppendedId(MediaStore.Audio.Media.INTERNAL_CONTENT_URI, currSong);
+        Uri trackUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, currSong);
+
+        ContentResolver cr = getContentResolver();
+        Cursor cur = cr.query(trackUri, null, null, null, null);
+        if (cur != null) {
+            if (cur.moveToFirst()) {
+                String filePath = cur.getString(0);
+
+                if (new File(filePath).exists()) {
+                    // do something if it exists
+                } else {
+                    //trackUri = ContentUris.withAppendedId(MediaStore.Audio.Media.INTERNAL_CONTENT_URI, currSong);
+                }
+            } else {
+                // Uri was ok but no entry found.
+                trackUri = ContentUris.withAppendedId(MediaStore.Audio.Media.INTERNAL_CONTENT_URI, currSong);
+            }
+            cur.close();
+        } else {
+            // content Uri was invalid or some other error occurred
+            //trackUri = ContentUris.withAppendedId(MediaStore.Audio.Media.INTERNAL_CONTENT_URI, currSong);
+        }
+
 
         try{
             player.setDataSource(getApplicationContext(), trackUri);
