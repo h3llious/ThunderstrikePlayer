@@ -24,13 +24,14 @@ import android.support.v7.widget.RecyclerView;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.MediaController;
 import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements MediaController.MediaPlayerControl {
 
     final static int MY_PERMISSIONS_REQUEST_READ_MEDIA = 1;
 
@@ -40,6 +41,8 @@ public class MainActivity extends AppCompatActivity {
     private MusicService musicService;
     private Intent playIntent;
     private boolean musicBound = false;
+
+    private MusicController controller;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,7 +57,6 @@ public class MainActivity extends AppCompatActivity {
         getSupportActionBar().setDisplayShowHomeEnabled(true);
         actionBar.setLogo(R.drawable.thunder);    //Icon muốn hiện thị
         actionBar.setDisplayUseLogoEnabled(true);
-
 
 
         int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
@@ -73,6 +75,8 @@ public class MainActivity extends AppCompatActivity {
         MusicListAdapter adapter = new MusicListAdapter(songList);
         songView.setLayoutManager(new GridLayoutManager(this, 2));
         songView.setAdapter(adapter);
+
+        setController();
     }
 
 
@@ -82,20 +86,21 @@ public class MainActivity extends AppCompatActivity {
             MusicService.MusicBinder binder = (MusicService.MusicBinder) service;
             musicService = binder.getService();
             musicService.setList(songList);
-            musicBound = true;
+
         }
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
-            musicBound = false;
+            musicService = null;
         }
     };
 
     @Override
     protected void onStart() {
         super.onStart();
-        if (playIntent == null){
+        if (playIntent == null) {
             playIntent = new Intent(this, MusicService.class);
+            musicBound = true;
             bindService(playIntent, musicConnection, Context.BIND_AUTO_CREATE);
             startService(playIntent);
         }
@@ -145,9 +150,12 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public void songPicked(View view ){
-        musicService.setSong(Integer.parseInt(view.getTag().toString()));
-        musicService.playSong();
+    public void songPicked(View view) {
+        if (musicBound) {
+            musicService.setSong(Integer.parseInt(view.getTag().toString()));
+            musicService.playSong();
+            controller.show(0);
+        }
     }
 
     @Override
@@ -160,28 +168,125 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         //menu item selected
 
-        switch (item.getItemId()){
+        switch (item.getItemId()) {
             case R.id.action_shuffle:
                 break;
             case R.id.action_end:
-                Intent  intent = new Intent(MainActivity.this, MusicService.class);
+                Intent intent = new Intent(MainActivity.this, MusicService.class);
 
 
-                stopService(intent);
-                unbindService(musicConnection);
+                stopService(playIntent);
+
+//                if (musicBound) {
+//                    unbindService(musicConnection);
+//                    musicBound = false;
+//                }
+
                 musicService = null;
                 Toast.makeText(this, "Hello", Toast.LENGTH_SHORT).show();
-//                System.exit(0);
+                System.exit(0);
                 break;
         }
-        return onOptionsItemSelected(item);
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
     protected void onDestroy() {
-        Intent  intent = new Intent(MainActivity.this, MusicService.class);
-        stopService(intent);
-        musicService=null;
+        stopService(playIntent);
+        musicService = null;
         super.onDestroy();
+    }
+
+    private void setController() {
+        controller = new MusicController(this);
+        controller.setPrevNextListeners(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                playNext();
+            }
+        }, new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                playPrev();
+            }
+        });
+
+        controller.setMediaPlayer(this);
+        controller.setAnchorView(findViewById(R.id.song_list));
+        controller.setEnabled(true);
+    }
+
+    private void playNext() {
+        musicService.playNext();
+        controller.show(0);
+    }
+
+    private void playPrev() {
+        musicService.playPrev();
+        controller.show(0);
+    }
+
+    @Override
+    public void start() {
+        musicService.go();
+    }
+
+    @Override
+    public void pause() {
+        musicService.pausePlayer();
+    }
+
+    @Override
+    public int getDuration() {
+        if (musicService!=null && musicBound && musicService.isPlaying())
+            return musicService.getDur();
+        else
+            return 0;
+    }
+
+    @Override
+    public int getCurrentPosition() {
+        if (musicService!=null && musicBound && musicService.isPlaying())
+            return musicService.getPos();
+        else
+            return 0;
+    }
+
+    @Override
+    public void seekTo(int pos) {
+        musicService.seek(pos);
+    }
+
+    @Override
+    public boolean isPlaying() {
+        if (musicService!=null && musicBound)
+            return musicService.isPlaying();
+        else
+            return false;
+    }
+
+    @Override
+    public int getBufferPercentage() {
+        return 0;
+    }
+
+    @Override
+    public boolean canPause() {
+        return true;
+    }
+
+    @Override
+    public boolean canSeekBackward() {
+        return true;
+    }
+
+    @Override
+    public boolean canSeekForward() {
+        return true;
+    }
+
+    @Override
+    public int getAudioSessionId() {
+        return 0;
     }
 }
