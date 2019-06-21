@@ -39,10 +39,13 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
     RecyclerView songView;
 
     private MusicService musicService;
+
     private Intent playIntent;
     private boolean musicBound = false;
 
     private MusicController controller;
+
+    private boolean paused = false, playbackPaused = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,8 +58,9 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
 
         ActionBar actionBar = getSupportActionBar();
         getSupportActionBar().setDisplayShowHomeEnabled(true);
-        actionBar.setLogo(R.drawable.thunder);    //Icon muốn hiện thị
+        actionBar.setLogo(R.drawable.ic_electricity);    //Icon muốn hiện thị
         actionBar.setDisplayUseLogoEnabled(true);
+        actionBar.setTitle("  Thunderstrike");
 
 
         int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
@@ -79,6 +83,20 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
         setController();
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+        paused = true;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (paused) {
+            setController();
+            paused = false;
+        }
+    }
 
     private ServiceConnection musicConnection = new ServiceConnection() {
         @Override
@@ -94,6 +112,12 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
             musicService = null;
         }
     };
+
+    @Override
+    protected void onStop() {
+        controller.hide();
+        super.onStop();
+    }
 
     @Override
     protected void onStart() {
@@ -126,8 +150,10 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
         Uri musicExUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
         Uri musicInUri = MediaStore.Audio.Media.INTERNAL_CONTENT_URI;
 
-        Cursor musicExCursor = musicResolver.query(musicExUri, null, null, null, null);
-        Cursor musicInCursor = musicResolver.query(musicInUri, null, null, null, null);
+        String selection = MediaStore.Audio.Media.IS_MUSIC + " != 0";
+
+        Cursor musicExCursor = musicResolver.query(musicExUri, null, selection, null, null);
+        Cursor musicInCursor = musicResolver.query(musicInUri, null, selection, null, null);
 
         Cursor[] cursors = {musicExCursor, musicInCursor};
 
@@ -154,6 +180,10 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
         if (musicBound) {
             musicService.setSong(Integer.parseInt(view.getTag().toString()));
             musicService.playSong();
+            if(playbackPaused){
+                setController();
+                playbackPaused=false;
+            }
             controller.show(0);
         }
     }
@@ -170,6 +200,8 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
 
         switch (item.getItemId()) {
             case R.id.action_shuffle:
+                musicService.setShuffle(); //shuffle songs
+
                 break;
             case R.id.action_end:
                 Intent intent = new Intent(MainActivity.this, MusicService.class);
@@ -218,11 +250,19 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
 
     private void playNext() {
         musicService.playNext();
+        if (playbackPaused){
+            setController();
+            playbackPaused = false;
+        }
         controller.show(0);
     }
 
     private void playPrev() {
         musicService.playPrev();
+        if(playbackPaused){
+            setController();
+            playbackPaused=false;
+        }
         controller.show(0);
     }
 
@@ -233,12 +273,13 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
 
     @Override
     public void pause() {
+        playbackPaused = true;
         musicService.pausePlayer();
     }
 
     @Override
     public int getDuration() {
-        if (musicService!=null && musicBound && musicService.isPlaying())
+        if (musicService != null && musicBound && musicService.isPlaying())
             return musicService.getDur();
         else
             return 0;
@@ -246,7 +287,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
 
     @Override
     public int getCurrentPosition() {
-        if (musicService!=null && musicBound && musicService.isPlaying())
+        if (musicService != null && musicBound && musicService.isPlaying())
             return musicService.getPos();
         else
             return 0;
@@ -259,7 +300,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
 
     @Override
     public boolean isPlaying() {
-        if (musicService!=null && musicBound)
+        if (musicService != null && musicBound)
             return musicService.isPlaying();
         else
             return false;
