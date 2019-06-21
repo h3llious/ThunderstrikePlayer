@@ -18,6 +18,7 @@
             android:name=".MusicService"
             android:enabled="true"/>
 
+
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"

@@ -43,9 +43,9 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     final String NOTIFICATION_CHANNEL_ID = "thunderstrike";
 
-    final String ACTION_PAUSE = "PAUSE";
-    final String ACTION_PLAY = "PLAY";
-    final String ACTION_STOP_FOREGROUND_SERVICE = "STOP";
+    final static String ACTION_PAUSE = "PAUSE";
+    final static String ACTION_PLAY = "PLAY";
+    final static String ACTION_STOP_FOREGROUND_SERVICE = "STOP";
 
     private boolean shuffle = false;
     private Random rand;
@@ -175,21 +175,21 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
                 .setContentTitle("Playing")
                 .setContentText(songTitle);
 
-        Intent playIntent = new Intent(this, MusicService.class);
-        playIntent.setAction(ACTION_PLAY);
-        PendingIntent pendingPlayIntent = PendingIntent.getService(this, 0, playIntent, 0);
+        Intent playIntent = new Intent(ACTION_PLAY);
+//        playIntent.setAction(ACTION_PLAY);
+        PendingIntent pendingPlayIntent = PendingIntent.getBroadcast(this, 0, playIntent, 0);
         NotificationCompat.Action playAction = new NotificationCompat.Action(R.drawable.play, "Play", pendingPlayIntent);
         builder.addAction(playAction);
 
-        Intent pauseIntent = new Intent(this, MusicService.class);
-        playIntent.setAction(ACTION_PAUSE);
-        PendingIntent pendingPauseIntent = PendingIntent.getService(this, 0, pauseIntent, 0);
+        Intent pauseIntent = new Intent(ACTION_PAUSE);
+//        playIntent.setAction(ACTION_PAUSE);
+        PendingIntent pendingPauseIntent = PendingIntent.getBroadcast(this, 0, pauseIntent, 0);
         NotificationCompat.Action pauseAction = new NotificationCompat.Action(R.drawable.end, "Pause", pendingPauseIntent);
         builder.addAction(pauseAction);
 
-        Intent stopIntent = new Intent(this, MusicService.class);
-        playIntent.setAction(ACTION_STOP_FOREGROUND_SERVICE);
-        PendingIntent pendingStopIntent = PendingIntent.getService(this, 0, stopIntent, 0);
+        Intent stopIntent = new Intent(ACTION_STOP_FOREGROUND_SERVICE);
+//        playIntent.setAction(ACTION_STOP_FOREGROUND_SERVICE);
+        PendingIntent pendingStopIntent = PendingIntent.getBroadcast(this, 0, stopIntent, 0);
         NotificationCompat.Action stopAction = new NotificationCompat.Action(R.drawable.end, "Stop", pendingStopIntent);
         builder.addAction(stopAction);
 
@@ -245,13 +245,14 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     @Override
     public void onDestroy() {
-        super.onDestroy();
+
         if (player != null) {
             player.stop();
             player.release();
         }
         stopForeground(true);
         stopSelf();
+        super.onDestroy();
     }
 
     public int getPos() {

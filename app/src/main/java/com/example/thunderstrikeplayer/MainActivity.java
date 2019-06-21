@@ -5,6 +5,7 @@ import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -47,10 +48,27 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
 
     private boolean paused = false, playbackPaused = false;
 
+    PauseReceiver pauseReceiver;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+
+        pauseReceiver = null;
+        pauseReceiver = new PauseReceiver();
+        pauseReceiver.setMainActivityHandler(this);
+
+        final IntentFilter filter = new IntentFilter(MusicService.ACTION_PAUSE);
+        final IntentFilter filter2 = new IntentFilter(MusicService.ACTION_PLAY);
+        final IntentFilter filter3 = new IntentFilter(MusicService.ACTION_STOP_FOREGROUND_SERVICE);
+
+        registerReceiver(pauseReceiver, filter3);
+        registerReceiver(pauseReceiver, filter2);
+        registerReceiver(pauseReceiver, filter);
+
+
 
         songView = findViewById(R.id.song_list);
         songList = new ArrayList<Song>();
@@ -116,6 +134,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
     @Override
     protected void onStop() {
         controller.hide();
+        unregisterReceiver(pauseReceiver);
         super.onStop();
     }
 
@@ -220,6 +239,12 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
                 break;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    void stop(){
+//        unbindService(musicConnection);
+        stopService(playIntent);
+        musicService = null;
     }
 
     @Override
