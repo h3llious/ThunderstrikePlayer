@@ -5,16 +5,13 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
-import android.content.ServiceConnection;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.media.AudioManager;
-import android.media.MediaExtractor;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Binder;
@@ -22,12 +19,12 @@ import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.provider.MediaStore;
-import android.support.v4.app.NotificationCompat;
+import androidx.core.app.NotificationCompat;
 import android.util.Log;
+import android.view.MenuItem;
 import android.widget.Toast;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -50,11 +47,27 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     private boolean shuffle = false;
     private Random rand;
 
+
+
+    MainActivity main = null;
+
+    void setMainActivityHandler(MainActivity main) {
+        this.main = main;
+    }
+
+
     @Override
     public void onCreate() {
         super.onCreate();
         player = new MediaPlayer();
         songPos = 0;
+
+        player.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+            @Override
+            public void onPrepared(MediaPlayer mp) {
+                main.getController().show();
+            }
+        });
 
 
         rand = new Random();
@@ -64,12 +77,16 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         initMusicPlayer();
     }
 
-    public void setShuffle() {
+    public void setShuffle(MenuItem item) {
         if (shuffle) {
             shuffle = false;
-        }else shuffle = true;
+            item.setIcon(R.drawable.rand);
+        } else {
+            shuffle = true;
+            item.setIcon(R.drawable.ic_shuffle);
+        }
 
-        Toast.makeText(this, "Shuffle is "+shuffle, Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Shuffle is " + shuffle, Toast.LENGTH_SHORT).show();
     }
 
     private void createNotificationChannel() {
@@ -178,7 +195,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         Intent playIntent = new Intent(ACTION_PLAY);
 //        playIntent.setAction(ACTION_PLAY);
         PendingIntent pendingPlayIntent = PendingIntent.getBroadcast(this, 0, playIntent, 0);
-        NotificationCompat.Action playAction = new NotificationCompat.Action(R.drawable.play, "Play", pendingPlayIntent);
+        NotificationCompat.Action playAction = new NotificationCompat.Action(android.R.drawable.btn_star, "Play", pendingPlayIntent);
         builder.addAction(playAction);
 
         Intent pauseIntent = new Intent(ACTION_PAUSE);
@@ -197,6 +214,8 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         Notification not = builder.build();
 
         startForeground(NOTIFY_ID, not);
+
+
     }
 
     public void setSong(int songIndex) {
@@ -269,6 +288,10 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     public void pausePlayer() {
         player.pause();
+    }
+
+    public void stopPlayer(){
+        player.stop();
     }
 
     public void seek(int pos) {

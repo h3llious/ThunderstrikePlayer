@@ -7,33 +7,36 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.MergeCursor;
 import android.net.Uri;
 import android.os.IBinder;
 import android.provider.MediaStore;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.ActionBar;
-import android.support.v7.app.AppCompatActivity;
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
-import android.support.v7.widget.GridLayoutManager;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.MediaController;
 import android.widget.Toast;
 
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdView;
+import com.google.android.gms.ads.MobileAds;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 
 public class MainActivity extends AppCompatActivity implements MediaController.MediaPlayerControl {
-
     final static int MY_PERMISSIONS_REQUEST_READ_MEDIA = 1;
 
     ArrayList<Song> songList;
@@ -50,11 +53,31 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
 
     PauseReceiver pauseReceiver;
 
+    SharedPreferences sharedPreferences;
+    SharedPreferences.Editor editor;
+
+
+    private boolean isShuffle = false;
+    boolean shuffleOption;
+
+    private AdView adView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        MobileAds.initialize(this,"ca-app-pub-3940256099942544~3347511713");
+        adView = findViewById(R.id.adView);
+        AdRequest adRequest = new AdRequest.Builder().build();
+        adView.loadAd(adRequest);
+
+        sharedPreferences = getPreferences(MODE_PRIVATE);
+        editor = sharedPreferences.edit();
+        shuffleOption = sharedPreferences.getBoolean(getString(R.string.shuffle), false);
+        Toast.makeText(this, ""+shuffleOption, Toast.LENGTH_SHORT).show();
+        if (shuffleOption)
+            isShuffle = true;
 
         pauseReceiver = null;
         pauseReceiver = new PauseReceiver();
@@ -67,8 +90,6 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
         registerReceiver(pauseReceiver, filter3);
         registerReceiver(pauseReceiver, filter2);
         registerReceiver(pauseReceiver, filter);
-
-
 
         songView = findViewById(R.id.song_list);
         songList = new ArrayList<Song>();
@@ -99,6 +120,8 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
         songView.setAdapter(adapter);
 
         setController();
+
+
     }
 
     @Override
@@ -122,6 +145,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
             MusicService.MusicBinder binder = (MusicService.MusicBinder) service;
             musicService = binder.getService();
             musicService.setList(songList);
+
 
         }
 
@@ -199,10 +223,11 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
         if (musicBound) {
             musicService.setSong(Integer.parseInt(view.getTag().toString()));
             musicService.playSong();
-            if(playbackPaused){
+            if (playbackPaused) {
                 setController();
-                playbackPaused=false;
+                playbackPaused = false;
             }
+//            controller.hide();
             controller.show(0);
         }
     }
@@ -210,17 +235,30 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main, menu);
+
+        if (shuffleOption)
+        {
+            musicService.setShuffle(menu.getItem(0));
+//            menu.getItem(0).setIcon(ContextCompat.getDrawable(this,R.drawable.ic_shuffle));
+        }
+
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         //menu item selected
-
         switch (item.getItemId()) {
             case R.id.action_shuffle:
-                musicService.setShuffle(); //shuffle songs
-
+                musicService.setShuffle(item); //shuffle songs
+                if (isShuffle) {
+                    isShuffle = false;
+                    editor.putBoolean(getString(R.string.shuffle), false);
+                } else {
+                    isShuffle = true;
+                    editor.putBoolean(getString(R.string.shuffle), true);
+                }
+                editor.apply();
                 break;
             case R.id.action_end:
                 Intent intent = new Intent(MainActivity.this, MusicService.class);
@@ -241,10 +279,13 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
         return super.onOptionsItemSelected(item);
     }
 
-    void stop(){
+    void stop() {
 //        unbindService(musicConnection);
-        stopService(playIntent);
-        musicService = null;
+        musicService.stopForeground(true);
+        musicService.stopPlayer(); //just stop the player without affect the ability to continue to play
+        controller.hide();
+//        stopService(playIntent);
+//        musicService = null;
     }
 
     @Override
@@ -254,28 +295,36 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
         super.onDestroy();
     }
 
+    public MusicController getController() {
+        return controller;
+    }
+
     private void setController() {
         controller = new MusicController(this);
         controller.setPrevNextListeners(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 playNext();
+//                controller.show();
             }
         }, new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 playPrev();
+//                controller.show();
             }
         });
+
 
         controller.setMediaPlayer(this);
         controller.setAnchorView(findViewById(R.id.song_list));
         controller.setEnabled(true);
+
     }
 
     private void playNext() {
         musicService.playNext();
-        if (playbackPaused){
+        if (playbackPaused) {
             setController();
             playbackPaused = false;
         }
@@ -284,9 +333,9 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
 
     private void playPrev() {
         musicService.playPrev();
-        if(playbackPaused){
+        if (playbackPaused) {
             setController();
-            playbackPaused=false;
+            playbackPaused = false;
         }
         controller.show(0);
     }
@@ -294,6 +343,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
     @Override
     public void start() {
         musicService.go();
+        controller.show();
     }
 
     @Override
